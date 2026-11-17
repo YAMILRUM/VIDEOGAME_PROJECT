@@ -1,24 +1,17 @@
-#pragma once
-#include "raylib.h"
+#ifndef JUEGO_H
+#define JUEGO_H
+
 #include "Jugador.h"
 #include "Nivel.h"
-#include <vector>
-
-enum class Estado { MENU, JUGANDO, FIN_RONDA, FIN_JUEGO };
 
 class Juego {
+private:
+    Jugador jugador{300, 300};
+    Nivel nivel;
+
 public:
     Juego();
     void Ejecutar();
-
-private:
-    void Actualizar();
-    void Dibujar();
-    void ActualizarCamara();
-    void RevisarEliminaciones();
-
-    Estado estado;
-    std::vector<Jugador> jugadores;
-    Nivel nivel;
-    Camera2D camara;
 };
+
+#endif

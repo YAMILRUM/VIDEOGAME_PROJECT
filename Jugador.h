@@ -1,28 +1,38 @@
-#pragma once
+
+#ifndef JUGADOR_H
+#define JUGADOR_H
+
 #include "raylib.h"
-
-class Nivel;
-
-struct Controles {
-    int izquierda, derecha, salto, deslizar;
-};
+#include <vector>
 
 class Jugador {
-public:
-    Jugador(Vector2 pos, Color color, Controles controles);
-    void Actualizar(const Nivel& nivel);
-    void Dibujar() const;
-    Rectangle GetCaja() const;
-    bool EstaVivo() const;
-    void Eliminar();
-    int  GetPuntos() const;
-    void SumarPunto();
-
 private:
-    Rectangle caja;
+    Vector2 posicion;
     Vector2 velocidad;
-    bool enSuelo, vivo;
-    int puntos;
-    Color color;
-    Controles controles;
+
+    float ancho;
+    float alto;
+
+    float velocidadMovimiento;
+    float fuerzaSalto;
+    float gravedad;
+
+    // Nuevos atributos
+    float aceleracion;
+    float friccion;
+    float velocidadSprint;
+
+    bool enSuelo;
+
+public:
+    Jugador(float x, float y);
+
+    void Actualizar(
+        float deltaTime,
+        const std::vector<Rectangle>& plataformas
+    );
+
+    void Dibujar();
 };
+
+#endif

@@ -1,11 +1,24 @@
 #include "Nivel.h"
 
-void Nivel::Cargar() {}
+Nivel::Nivel() {
 
-void Nivel::Dibujar() const {
-    DrawRectangle(0, 340, 2000, 110, DARKGREEN);
+    // Suelo principal
+    plataformas.push_back({0, 600, 1280, 120});
+
+    // Plataformas elevadas
+    plataformas.push_back({150, 480, 200, 20});
+    plataformas.push_back({450, 380, 200, 20});
+    plataformas.push_back({750, 450, 200, 20});
+    plataformas.push_back({1000, 330, 180, 20});
 }
 
-bool Nivel::ColisionaCon(Rectangle caja) const { return false; }
+void Nivel::Dibujar() {
 
-float Nivel::GetAncho() const { return 2000; }
+    for (const Rectangle& plataforma : plataformas) {
+        DrawRectangleRec(plataforma, GRAY);
+    }
+}
+
+const std::vector<Rectangle>& Nivel::ObtenerPlataformas() const {
+    return plataformas;
+}
