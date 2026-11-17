@@ -4,7 +4,16 @@
 #include <cmath>
 
 // Constructor
-Jugador::Jugador(float x, float y) {
+
+Jugador::Jugador(
+    float x,
+    float y,
+    Color colorJugador,
+    int izquierda,
+    int derecha,
+    int salto,
+    int sprint
+    ) {
     posicion = {x, y};
     velocidad = {0, 0};
 
@@ -21,7 +30,15 @@ Jugador::Jugador(float x, float y) {
     gravedad = 1200;
 
     enSuelo = false;
+
+    color = colorJugador;
+
+    teclaIzquierda = izquierda;
+    teclaDerecha = derecha;
+    teclaSalto = salto;
+    teclaSprint = sprint;
 }
+
 
 // Actualizar jugador
 void Jugador::Actualizar(
@@ -34,10 +51,15 @@ void Jugador::Actualizar(
     // 1. Movimiento horizontal
     int direccion = 0;
 
-    if (IsKeyDown(KEY_D)) direccion++;
-    if (IsKeyDown(KEY_A)) direccion--;
+    if (IsKeyDown(teclaDerecha)) {
+      direccion++;
+    }
 
-    bool sprint = IsKeyDown(KEY_LEFT_SHIFT);
+    if (IsKeyDown(teclaIzquierda)) {
+      direccion--;
+  }
+
+    bool sprint = IsKeyDown(teclaSprint);
 
     float velocidadMaxima =
         sprint ? velocidadSprint : velocidadMovimiento;
@@ -69,14 +91,14 @@ void Jugador::Actualizar(
     }
 
     // 2. Salto
-    if (IsKeyPressed(KEY_SPACE) && enSuelo) {
-        velocidad.y = fuerzaSalto;
-        enSuelo = false;
+    if (IsKeyPressed(teclaSalto) && enSuelo) {
+    velocidad.y = fuerzaSalto;
+    enSuelo = false;
     }
 
     // Salto variable
-    if (IsKeyReleased(KEY_SPACE) && velocidad.y < 0) {
-        velocidad.y *= 0.5f;
+    if (IsKeyReleased(teclaSalto) && velocidad.y < 0) {
+    velocidad.y *= 0.5f;
     }
 
     // 3. Gravedad
@@ -157,6 +179,16 @@ void Jugador::Dibujar() {
         (int)posicion.y,
         (int)ancho,
         (int)alto,
-        BLUE
+        color
     );
 }
+
+Rectangle Jugador::ObtenerRectangulo() const {
+    return {
+        posicion.x,
+        posicion.y,
+        ancho,
+        alto
+    };
+}
+

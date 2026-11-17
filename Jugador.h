@@ -24,8 +24,24 @@ private:
 
     bool enSuelo;
 
+    Color color;
+
+    int teclaIzquierda;
+    int teclaDerecha;
+    int teclaSalto;
+    int teclaSprint;
+
 public:
-    Jugador(float x, float y);
+    Jugador(
+        float x,
+        float y,
+        Color colorJugador,
+        int izquierda,
+        int derecha,
+        int salto,
+        int sprint
+    );
+    Rectangle ObtenerRectangulo() const;
 
     void Actualizar(
         float deltaTime,
