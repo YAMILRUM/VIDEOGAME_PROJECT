@@ -31,6 +31,12 @@ private:
     int teclaSalto;
     int teclaSprint;
 
+    int teclaDeslizar;
+    bool deslizando;
+
+    float velocidadDeslizamiento;
+    float friccionDeslizamiento;
+
 public:
     Jugador(
         float x,
@@ -39,8 +45,10 @@ public:
         int izquierda,
         int derecha,
         int salto,
-        int sprint
+        int sprint,
+        int deslizar
     );
+
     Rectangle ObtenerRectangulo() const;
 
     void Actualizar(

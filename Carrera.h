@@ -10,7 +10,13 @@ private:
     int ganador;
     bool terminada;
 
+    int puntosJugador1;
+    int puntosJugador2;
+    int puntosParaGanar;
+
     Rectangle meta;
+
+    void RegistrarVictoria(int jugador);
 
 public:
     Carrera();
@@ -21,10 +27,16 @@ public:
         Rectangle jugador2
     );
 
-    void Dibujar() const;
+    void DibujarMeta() const;
+    void DibujarInterfaz() const;
+
+    void EliminarJugador(int numeroJugador);
+
     void Reiniciar();
+    void NuevaRonda();
 
     bool EstaTerminada() const;
+    bool PartidaTerminada() const;
 };
 
 #endif
