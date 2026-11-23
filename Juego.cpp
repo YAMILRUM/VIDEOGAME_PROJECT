@@ -1,364 +1,231 @@
-
 #include "Juego.h"
 #include "raylib.h"
 #include "raymath.h"
 #include <algorithm>
-#include <limits>
+#include <cmath>
 
-// Constructor
 Juego::Juego() {
-
     InitWindow(1280, 720, "HUSS HUSS - Carrera");
     SetTargetFPS(60);
-
-    // Puntos de anclaje distribuidos por el nivel
-    puntosAnclaje = {
-        {500, 250},
-        {1050, 270},
-        {1600, 200},
-        {2200, 250},
-        {2750, 220}
-    };
-
-    // Trampas repartidas por el mapa
-    obstaculos.emplace_back(650, 570, 90, 30);
-    obstaculos.emplace_back(1250, 570, 90, 30);
-    obstaculos.emplace_back(1900, 570, 90, 30);
-    obstaculos.emplace_back(2600, 570, 90, 30);
+    SetExitKey(KEY_NULL); // ESC sera pausa, no cierre automatico
+    Jugador::CargarSprites();
+    puntosAnclaje = {{500,250}, {1050,270}, {1600,200}, {2200,250}, {2750,220}};
+    obstaculos.emplace_back(650,570,90,30);
+    obstaculos.emplace_back(1250,570,90,30);
+    obstaculos.emplace_back(1900,570,90,30);
+    obstaculos.emplace_back(2600,570,90,30);
 }
 
-
-// Ejecutar juego
 void Juego::Ejecutar() {
-
-    camara.offset = {640, 360};
-    camara.target = {640, 360};
+    camara.offset = {640,360};
+    camara.target = {640,360};
     camara.rotation = 0;
     camara.zoom = 1.0f;
 
-    while (!WindowShouldClose()) {
+    enum class Pantalla { Menu, Controles, Jugando, Pausa };
+    Pantalla pantalla = Pantalla::Menu;
+    bool salir = false;
+    float cuentaRegresiva = 3.75f;
+    // Cuenta regresiva reiniciada al comenzar cada ronda.
 
+    auto boton = [](Rectangle r, const char* titulo) {
+        Vector2 raton = GetMousePosition();
+        bool encima = CheckCollisionPointRec(raton, r);
+        DrawRectangleRounded(r, 0.20f, 8, encima ? Color{44, 185, 214, 255}
+                                                      : Color{28, 48, 79, 255});
+        DrawRectangleRoundedLinesEx(r, 0.20f, 8, 2.0f, GOLD);
+        int tam = 25;
+        DrawText(titulo, (int)(r.x + (r.width - MeasureText(titulo,tam))/2),
+                 (int)(r.y + (r.height - tam)/2), tam, WHITE);
+        return encima && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+    };
+
+    while (!WindowShouldClose() && !salir) {
         float deltaTime = GetFrameTime();
         bool seReinicio = false;
-
-        // 1. Reinicio completo
-        if (IsKeyPressed(KEY_R)) {
-
-            TraceLog(LOG_INFO, "TECLA R DETECTADA");
-
-            Reiniciar();
-            seReinicio = true;
+        if (pantalla == Pantalla::Jugando && IsKeyPressed(KEY_ESCAPE)) {
+            pantalla = Pantalla::Pausa;
+        } else if (pantalla == Pantalla::Pausa && IsKeyPressed(KEY_ESCAPE)) {
+            pantalla = Pantalla::Jugando;
         }
 
-        // 2. Siguiente ronda
-        else if (IsKeyPressed(KEY_ENTER) ||
-                 IsKeyPressed(KEY_KP_ENTER)) {
-
-            TraceLog(LOG_INFO, "TECLA ENTER DETECTADA");
-
-            if (carrera.EstaTerminada() &&
-                !carrera.PartidaTerminada()) {
-
+        if (pantalla == Pantalla::Jugando && IsKeyPressed(KEY_R)) {
+            Reiniciar();
+            cuentaRegresiva = 3.75f;
+            seReinicio = true;
+        } else if (pantalla == Pantalla::Jugando &&
+                   (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))) {
+            if (carrera.EstaTerminada() && !carrera.PartidaTerminada()) {
                 ReiniciarJugadores();
                 carrera.NuevaRonda();
-
+                cuentaRegresiva = 3.75f;
                 seReinicio = true;
-
-                TraceLog(
-                    LOG_INFO,
-                    "NUEVA RONDA INICIADA"
-                );
             }
         }
 
-        // 3. Actualizar jugadores y ganchos
-        if (!seReinicio && !carrera.EstaTerminada()) {
+        // Solo avanzar la cuenta regresiva mientras se esta jugando.
+        // ESC durante la cuenta regresiva la congela al pausar.
+        if (pantalla == Pantalla::Jugando && cuentaRegresiva > 0.0f &&
+            !seReinicio && !carrera.EstaTerminada()) {
+            cuentaRegresiva = std::max(0.0f, cuentaRegresiva - std::min(deltaTime, 0.1f));
+        }
 
-            jugador1.Actualizar(
-                deltaTime,
-                nivel.ObtenerPlataformas()
-            );
-
-            jugador2.Actualizar(
-                deltaTime,
-                nivel.ObtenerPlataformas()
-            );
-
-            // Obtener centros de los jugadores
-            Rectangle cuerpo1 =
-                jugador1.ObtenerRectangulo();
-
-            Rectangle cuerpo2 =
-                jugador2.ObtenerRectangulo();
-
-            Vector2 origen1 = {
-                cuerpo1.x + cuerpo1.width / 2,
-                cuerpo1.y + cuerpo1.height / 2
-            };
-
-            Vector2 origen2 = {
-                cuerpo2.x + cuerpo2.width / 2,
-                cuerpo2.y + cuerpo2.height / 2
-            };
-
-            // Buscar punto de anclaje mas cercano
-            auto buscarAnclaje = [&](Vector2 origen) {
-
-                Vector2 mejorPunto = origen;
-                float distanciaMinima = 450.0f;
-
+        if (pantalla == Pantalla::Jugando && cuentaRegresiva <= 0.0f &&
+            !seReinicio && !carrera.EstaTerminada()) {
+            // El gancho se actualiza ANTES de la fisica del jugador.
+            auto buscarAnclaje = [&](Vector2 origen, Vector2& destino) {
+                float minima = 450.0f;
+                bool encontrado = false;
                 for (const Vector2& punto : puntosAnclaje) {
-
-                    float distancia =
-                        Vector2Distance(origen, punto);
-
-                    if (distancia < distanciaMinima) {
-
-                        distanciaMinima = distancia;
-                        mejorPunto = punto;
+                    float distancia = Vector2Distance(origen, punto);
+                    if (distancia < minima) {
+                        minima = distancia;
+                        destino = punto;
+                        encontrado = true;
                     }
                 }
-
-                return mejorPunto;
+                return encontrado;
             };
 
-            // Gancho del jugador verde
-            if (IsKeyDown(KEY_E)) {
-
-                if (!gancho1.EstaActivo()) {
-
-                    Vector2 destino =
-                        buscarAnclaje(origen1);
-
-                    // Solo lanzar si hay un punto
-                    // de anclaje dentro del alcance
-                    if (Vector2Distance(origen1, destino)
-                        > 0.01f) {
-
-                        gancho1.Lanzar(
-                            origen1,
-                            destino
-                        );
+            auto actualizarGancho = [&](Gancho& gancho, Jugador& jugador, int tecla) {
+                Rectangle r = jugador.ObtenerRectangulo();
+                Vector2 centro = {r.x + r.width/2, r.y + r.height/2};
+                if (IsKeyDown(tecla)) {
+                    if (!gancho.EstaActivo()) {
+                        Vector2 destino{};
+                        if (buscarAnclaje(centro, destino)) gancho.Lanzar(centro, destino);
                     }
+                } else {
+                    gancho.Soltar();
                 }
-            }
-            else {
-                gancho1.Soltar();
-            }
+                jugador.ConfigurarGancho(gancho.EstaActivo(),
+                                        gancho.EstaActivo() ? gancho.ObtenerAnclaje() : Vector2{0,0});
+            };
 
-            // Gancho del jugador rojo
-            if (IsKeyDown(KEY_L)) {
+            actualizarGancho(gancho1, jugador1, KEY_E);
+            actualizarGancho(gancho2, jugador2, KEY_L);
 
-                if (!gancho2.EstaActivo()) {
+            // Mientras el gancho esta activo: Shift recoge, abajo extiende.
+            // Los controles se aplican solo si hay una cuerda conectada.
+            jugador1.AjustarLongitudCuerda(deltaTime,
+                gancho1.EstaActivo() && IsKeyDown(KEY_LEFT_SHIFT),
+                gancho1.EstaActivo() && IsKeyDown(KEY_S));
+            jugador2.AjustarLongitudCuerda(deltaTime,
+                gancho2.EstaActivo() && IsKeyDown(KEY_RIGHT_SHIFT),
+                gancho2.EstaActivo() && IsKeyDown(KEY_DOWN));
 
-                    Vector2 destino =
-                        buscarAnclaje(origen2);
+            jugador1.Actualizar(deltaTime, nivel.ObtenerPlataformas());
+            jugador2.Actualizar(deltaTime, nivel.ObtenerPlataformas());
 
-                    if (Vector2Distance(origen2, destino)
-                        > 0.01f) {
-
-                        gancho2.Lanzar(
-                            origen2,
-                            destino
-                        );
-                    }
-                }
-            }
-            else {
-                gancho2.Soltar();
-            }
-
-            // Actualizar carrera
-            carrera.Actualizar(
-                deltaTime,
-                jugador1.ObtenerRectangulo(),
-                jugador2.ObtenerRectangulo()
-            );
-
-            // 4. Comprobar colisiones con obstaculos
+            carrera.Actualizar(deltaTime, jugador1.ObtenerRectangulo(),
+                               jugador2.ObtenerRectangulo());
             if (!carrera.EstaTerminada()) {
-
-                Rectangle r1 =
-                    jugador1.ObtenerRectangulo();
-
-                Rectangle r2 =
-                    jugador2.ObtenerRectangulo();
-
+                Rectangle r1 = jugador1.ObtenerRectangulo();
+                Rectangle r2 = jugador2.ObtenerRectangulo();
                 for (const Obstaculo& obstaculo : obstaculos) {
-
-                    bool golpea1 =
-                        obstaculo.Colisiona(r1);
-
-                    bool golpea2 =
-                        obstaculo.Colisiona(r2);
-
-                    // Mantener prioridad existente
-                    if (golpea1) {
-
-                        carrera.EliminarJugador(1);
-                        break;
-                    }
-
-                    if (golpea2) {
-
-                        carrera.EliminarJugador(2);
-                        break;
-                    }
+                    if (obstaculo.Colisiona(r1)) { carrera.EliminarJugador(1); break; }
+                    if (obstaculo.Colisiona(r2)) { carrera.EliminarJugador(2); break; }
                 }
             }
         }
 
-        // 5. Obtener posiciones
-        Rectangle rect1 =
-            jugador1.ObtenerRectangulo();
-
-        Rectangle rect2 =
-            jugador2.ObtenerRectangulo();
-
-        float centro1 =
-            rect1.x + rect1.width / 2;
-
-        float centro2 =
-            rect2.x + rect2.width / 2;
-
-        // 6. Camara sigue al jugador adelantado
-        float jugadorAdelante =
-            std::max(centro1, centro2);
-
-        float objetivoX = Clamp(
-            jugadorAdelante,
-            640.0f,
-            2560.0f
-        );
-
-        camara.target = {objetivoX, 360};
-
-        // Borde izquierdo de la camara
-        float bordeIzquierdo =
-            camara.target.x -
-            camara.offset.x / camara.zoom;
-
-        // 7. Eliminacion por quedarse atras
-        if (!seReinicio && !carrera.EstaTerminada()) {
-
-            if (rect1.x + rect1.width < bordeIzquierdo) {
-
-                carrera.EliminarJugador(1);
-            }
-            else if (
-                rect2.x + rect2.width < bordeIzquierdo
-            ) {
-
-                carrera.EliminarJugador(2);
-            }
+        Rectangle rect1 = jugador1.ObtenerRectangulo();
+        Rectangle rect2 = jugador2.ObtenerRectangulo();
+        float centro1 = rect1.x + rect1.width/2;
+        float centro2 = rect2.x + rect2.width/2;
+        float objetivoX = Clamp(std::max(centro1,centro2),640.0f,2560.0f);
+        camara.target = {objetivoX,360};
+        float bordeIzquierdo = camara.target.x - camara.offset.x/camara.zoom;
+        if (pantalla == Pantalla::Jugando && cuentaRegresiva <= 0.0f &&
+            !seReinicio && !carrera.EstaTerminada()) {
+            if (rect1.x + rect1.width < bordeIzquierdo) carrera.EliminarJugador(1);
+            else if (rect2.x + rect2.width < bordeIzquierdo) carrera.EliminarJugador(2);
         }
 
-        // 8. Dibujar juego
         BeginDrawing();
-
         ClearBackground(RAYWHITE);
-
         BeginMode2D(camara);
-
-        // Escenario
         nivel.Dibujar();
-
-        // Puntos de anclaje
         for (const Vector2& punto : puntosAnclaje) {
-
-            DrawCircleV(
-                punto,
-                9,
-                ORANGE
-            );
-
-            DrawCircleLines(
-                (int)punto.x,
-                (int)punto.y,
-                9,
-                BLACK
-            );
+            float pulso = 1.5f + 1.0f * sinf((float)GetTime() * 3.0f + punto.x * 0.01f);
+            DrawCircleV(punto, 16.0f + pulso, Fade(ORANGE, 0.16f));
+            DrawCircleV(punto, 12.0f, Color{48, 61, 83, 255});
+            DrawCircleV(punto, 8.0f, Color{255, 175, 40, 255});
+            DrawCircleV(punto, 4.0f, Color{255, 245, 175, 255});
+            DrawCircleLines((int)punto.x, (int)punto.y, 12.0f, BLACK);
+            DrawLineEx({punto.x - 6.0f, punto.y + 12.0f},
+                       {punto.x + 6.0f, punto.y + 12.0f}, 2.0f, GOLD);
         }
-
-        // Obstaculos
-        for (const Obstaculo& obstaculo : obstaculos) {
-
-            obstaculo.Dibujar();
-        }
-
-        // Centros actuales de los jugadores
-        Rectangle r1 =
-            jugador1.ObtenerRectangulo();
-
-        Rectangle r2 =
-            jugador2.ObtenerRectangulo();
-
-        Vector2 centroGancho1 = {
-            r1.x + r1.width / 2,
-            r1.y + r1.height / 2
-        };
-
-        Vector2 centroGancho2 = {
-            r2.x + r2.width / 2,
-            r2.y + r2.height / 2
-        };
-
-        // Dibujar cuerdas
-        gancho1.Dibujar(centroGancho1);
-        gancho2.Dibujar(centroGancho2);
-
-        // Jugadores
+        for (const Obstaculo& obstaculo : obstaculos) obstaculo.Dibujar();
+        Rectangle r1 = jugador1.ObtenerRectangulo();
+        Rectangle r2 = jugador2.ObtenerRectangulo();
+        gancho1.Dibujar({r1.x+r1.width/2,r1.y+r1.height/2});
+        gancho2.Dibujar({r2.x+r2.width/2,r2.y+r2.height/2});
         jugador1.Dibujar();
         jugador2.Dibujar();
-
-        // Meta
         carrera.DibujarMeta();
-
         EndMode2D();
+        DrawText("HUSS HUSS",500,20,30,BLACK);
+        if (pantalla == Pantalla::Jugando || pantalla == Pantalla::Pausa) {
+            carrera.DibujarInterfaz();
+        }
 
-        // Interfaz
-        DrawText(
-            "HUSS HUSS",
-            500, 20, 30, BLACK
-        );
+        // Texto de salida de la cuenta regresiva, sin cambiar el mundo fisico.
+        if (pantalla == Pantalla::Jugando && cuentaRegresiva > 0.0f) {
+            const char* mensaje = cuentaRegresiva > 2.75f ? "3" :
+                                  cuentaRegresiva > 1.75f ? "2" :
+                                  cuentaRegresiva > 0.75f ? "1" : "YA!";
+            int tam = (mensaje[0] == 'Y') ? 100 : 132;
+            DrawRectangle(0, 0, 1280, 720, Fade(BLACK, 0.30f));
+            DrawText(mensaje, (1280 - MeasureText(mensaje, tam))/2 + 4,
+                     255 + 4, tam, BLACK);
+            DrawText(mensaje, (1280 - MeasureText(mensaje, tam))/2,
+                     255, tam, GOLD);
+            DrawText("PREPARATE PARA CORRER", 455, 435, 25, WHITE);
+        }
 
-        carrera.DibujarInterfaz();
+        if (pantalla != Pantalla::Jugando) {
+            DrawRectangle(0, 0, 1280, 720, Fade(Color{6, 12, 28, 255}, 0.91f));
+            DrawText("HUSS HUSS", 430, 96, 62, GOLD);
+            DrawText("CARRERAS FUTURISTAS", 455, 170, 24, SKYBLUE);
 
+            if (pantalla == Pantalla::Menu) {
+                if (boton({460, 270, 360, 64}, "JUGAR")) {
+                    Reiniciar();
+                    cuentaRegresiva = 3.75f;
+                    pantalla = Pantalla::Jugando;
+                }
+                if (boton({460, 360, 360, 64}, "CONTROLES")) pantalla = Pantalla::Controles;
+                if (boton({460, 450, 360, 64}, "SALIR")) salir = true;
+            } else if (pantalla == Pantalla::Controles) {
+                DrawText("VERDE: A/D mover | W saltar | SHIFT sprint | S slide | E gancho", 210, 265, 20, WHITE);
+                DrawText("ROJO: FLECHAS mover/saltar/slide | SHIFT DER sprint | L gancho", 185, 305, 20, WHITE);
+                DrawText("CON GANCHO: SHIFT recoge | ABAJO/S extiende", 290, 350, 20, GOLD);
+                DrawText("ESC pausa | ENTER siguiente ronda | R reiniciar", 315, 390, 20, WHITE);
+                if (boton({460, 485, 360, 64}, "VOLVER")) pantalla = Pantalla::Menu;
+            } else if (pantalla == Pantalla::Pausa) {
+                DrawText("PAUSA", 550, 240, 42, WHITE);
+                if (boton({460, 335, 360, 64}, "CONTINUAR")) pantalla = Pantalla::Jugando;
+                if (boton({460, 430, 360, 64}, "MENU PRINCIPAL")) {
+                    Reiniciar();
+                    pantalla = Pantalla::Menu;
+                }
+            }
+        }
         EndDrawing();
     }
-
+    Jugador::LiberarSprites();
     CloseWindow();
 }
 
-
-// Reiniciar jugadores
 void Juego::ReiniciarJugadores() {
-
-    // Soltar ambos ganchos
     gancho1.Soltar();
     gancho2.Soltar();
-
-    jugador1 = Jugador(
-        100, 300,
-        GREEN,
-        KEY_A, KEY_D,
-        KEY_W, KEY_LEFT_SHIFT,
-        KEY_S
-    );
-
-    jugador2 = Jugador(
-        200, 300,
-        RED,
-        KEY_LEFT, KEY_RIGHT,
-        KEY_UP, KEY_RIGHT_SHIFT,
-        KEY_DOWN
-    );
+    jugador1 = Jugador(100,300,GREEN,KEY_A,KEY_D,KEY_W,KEY_LEFT_SHIFT,KEY_S);
+    jugador2 = Jugador(200,300,RED,KEY_LEFT,KEY_RIGHT,KEY_UP,KEY_RIGHT_SHIFT,KEY_DOWN);
 }
 
-
-// Reinicio completo
 void Juego::Reiniciar() {
-
     ReiniciarJugadores();
     carrera.Reiniciar();
 }

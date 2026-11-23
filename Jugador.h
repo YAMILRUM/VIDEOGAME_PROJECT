@@ -1,4 +1,3 @@
-
 #ifndef JUGADOR_H
 #define JUGADOR_H
 
@@ -9,54 +8,38 @@ class Jugador {
 private:
     Vector2 posicion;
     Vector2 velocidad;
-
-    float ancho;
-    float alto;
-
-    float velocidadMovimiento;
-    float fuerzaSalto;
-    float gravedad;
-
-    // Nuevos atributos
-    float aceleracion;
-    float friccion;
-    float velocidadSprint;
-
+    float ancho, alto;
+    float velocidadMovimiento, fuerzaSalto, gravedad;
+    float aceleracion, friccion, velocidadSprint;
     bool enSuelo;
-
     Color color;
-
-    int teclaIzquierda;
-    int teclaDerecha;
-    int teclaSalto;
-    int teclaSprint;
-
+    int teclaIzquierda, teclaDerecha, teclaSalto, teclaSprint;
     int teclaDeslizar;
     bool deslizando;
+    float velocidadDeslizamiento, friccionDeslizamiento;
 
-    float velocidadDeslizamiento;
-    float friccionDeslizamiento;
+    // Estado de la cuerda: la longitud se fija al engancharse.
+    bool ganchoActivo;
+    Vector2 anclajeGancho;
+    float longitudCuerda;
+
+    // Animacion visual: no altera fisica ni colisiones.
+    float tiempoAnimacion;
+    float tiempoEfecto;
+    int orientacionVisual;
+    int estadoVisualAnterior;
+
 
 public:
-    Jugador(
-        float x,
-        float y,
-        Color colorJugador,
-        int izquierda,
-        int derecha,
-        int salto,
-        int sprint,
-        int deslizar
-    );
-
+    Jugador(float x, float y, Color colorJugador,
+            int izquierda, int derecha, int salto, int sprint, int deslizar);
     Rectangle ObtenerRectangulo() const;
-
-    void Actualizar(
-        float deltaTime,
-        const std::vector<Rectangle>& plataformas
-    );
-
+    void AplicarTraccion(Vector2 puntoAnclaje, float deltaTime);
+    void ConfigurarGancho(bool activo, Vector2 puntoAnclaje);
+    void AjustarLongitudCuerda(float deltaTime, bool recoger, bool extender);
+    void Actualizar(float deltaTime, const std::vector<Rectangle>& plataformas);
     void Dibujar();
+    static void CargarSprites();
+    static void LiberarSprites();
 };
-
 #endif
