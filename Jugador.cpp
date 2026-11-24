@@ -237,7 +237,7 @@ void Jugador::Actualizar(float deltaTime,
         }
     }
     if (posicion.x < 0) { posicion.x = 0; velocidad.x = 0; }
-    if (posicion.x + ancho > 3200) { posicion.x = 3200 - ancho; velocidad.x = 0; }
+    if (posicion.x + ancho > 6400) { posicion.x = 6400 - ancho; velocidad.x = 0; }
 
     posicion.y += velocidad.y * deltaTime;
     enSuelo = false;
@@ -267,30 +267,55 @@ void Jugador::Actualizar(float deltaTime,
             float nx = dx / distancia;
             float ny = dy / distancia;
             float exceso = distancia - longitudCuerda;
-            Vector2 anterior = posicion;
-            posicion.x -= nx * exceso;
-            posicion.y -= ny * exceso;
+            // Barrido continuo del rectangulo durante la correccion.
+            const Vector2 ajuste = {-nx * exceso, -ny * exceso};
+            float avance = 1.0f;
+            auto limitarEje = [&](float p, float d, float minimo, float maximo) {
+                if (d < 0.0f) avance = std::min(avance, (minimo - p) / d);
+                else if (d > 0.0f) avance = std::min(avance, (maximo - p) / d);
+            };
+            limitarEje(posicion.x, ajuste.x, 0.0f, 6400.0f - ancho);
+            if (ajuste.y < 0.0f)
+                avance = std::min(avance, -posicion.y / ajuste.y);
 
-            // Cancelar velocidad que estira la cuerda; preservar la tangencial.
+            for (const Rectangle& plataforma : plataformas) {
+                float entrada = -INFINITY, salida = INFINITY;
+                auto barrerEje = [&](float p, float d, float minimo, float maximo) {
+                    if (d == 0.0f) return p > minimo && p < maximo;
+                    float t1 = (minimo - p) / d;
+                    float t2 = (maximo - p) / d;
+                    entrada = std::max(entrada, std::min(t1, t2));
+                    salida = std::min(salida, std::max(t1, t2));
+                    return entrada < salida;
+                };
+                if (barrerEje(posicion.x, ajuste.x,
+                              plataforma.x - ancho, plataforma.x + plataforma.width) &&
+                    barrerEje(posicion.y, ajuste.y,
+                              plataforma.y - alto, plataforma.y + plataforma.height) &&
+                    salida > 0.0f && entrada < avance) {
+                    avance = std::max(0.0f, entrada);
+                }
+            }
+            avance = std::clamp(avance, 0.0f, 1.0f);
+            // Margen minimo para evitar penetraciones por redondeo.
+            if (avance < 1.0f)
+                avance = std::max(0.0f, avance - 0.001f / exceso);
+            posicion.x += ajuste.x * avance;
+            posicion.y += ajuste.y * avance;
+
+            if (avance < 1.0f) {
+                // No acumular recogida imposible contra una superficie.
+                float rx = posicion.x + ancho * 0.5f - anclajeGancho.x;
+                float ry = posicion.y + alto * 0.5f - anclajeGancho.y;
+                longitudCuerda = std::max(longitudCuerda, std::sqrt(rx * rx + ry * ry));
+            }
+            if (posicion.y < centro.y - alto * 0.5f) enSuelo = false;
+
+            // Conservar la velocidad tangencial del pendulo.
             float radial = velocidad.x * nx + velocidad.y * ny;
             if (radial > 0.0f) {
                 velocidad.x -= radial * nx;
                 velocidad.y -= radial * ny;
-            }
-
-            // No permitir que la correccion de la cuerda atraviese plataformas.
-            // Si la posicion corregida colisiona, retrocedemos ese ajuste.
-            Rectangle corregido = ObtenerRectangulo();
-            bool bloqueado = (posicion.x < 0 || posicion.x + ancho > 3200 || posicion.y < 0);
-            for (const Rectangle& plataforma : plataformas) {
-                if (CheckCollisionRecs(corregido, plataforma)) {
-                    bloqueado = true;
-                    break;
-                }
-            }
-            if (bloqueado) {
-                posicion = anterior;
-                // La cuerda queda temporalmente floja ante un obstaculo.
             }
         }
     }
@@ -309,7 +334,3 @@ void Jugador::Actualizar(float deltaTime,
     }
     tiempoEfecto += deltaTime;
 }
-
-
-
-

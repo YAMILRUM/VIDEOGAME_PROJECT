@@ -47,25 +47,45 @@ void DibujarPlataforma(Rectangle p, bool suelo, bool tunel) {
 } // namespace
 
 Nivel::Nivel() {
-    // Misma geometria original: NO cambiar las colisiones.
-    plataformas.push_back({0, 600, 3200, 120});
-    plataformas.push_back({150, 480, 200, 20});
-    plataformas.push_back({450, 380, 200, 20});
-    plataformas.push_back({750, 450, 200, 20});
-    plataformas.push_back({1100, 400, 200, 20});
-    plataformas.push_back({1450, 320, 200, 20});
-    plataformas.push_back({1800, 450, 200, 20});
-    plataformas.push_back({2150, 370, 200, 20});
-    plataformas.push_back({2500, 460, 200, 20});
-    plataformas.push_back({2850, 350, 200, 20});
-    plataformas.push_back({950, 500, 220, 60});
-    plataformas.push_back({2250, 500, 220, 60});
+    // Tramos de suelo
+    plataformas.push_back({0, 600, 2050, 120});
+    plataformas.push_back({2290, 600, 1190, 120});
+    plataformas.push_back({3740, 600, 980, 120});
+    plataformas.push_back({5020, 600, 680, 120});
+    plataformas.push_back({5980, 600, 420, 120});
+    // Plataformas elevadas
+    plataformas.push_back({420, 500, 160, 20});
+    plataformas.push_back({520, 390, 160, 20});
+    plataformas.push_back({780, 420, 150, 20});
+    plataformas.push_back({1200, 420, 150, 20});
+    plataformas.push_back({1380, 390, 160, 20});
+    plataformas.push_back({1650, 490, 160, 20});
+    plataformas.push_back({1900, 490, 150, 20});
+    plataformas.push_back({2130, 460, 100, 20});
+    plataformas.push_back({2400, 390, 160, 20});
+    plataformas.push_back({2620, 390, 160, 20});
+    plataformas.push_back({2900, 490, 160, 20});
+    plataformas.push_back({3300, 390, 160, 20});
+    plataformas.push_back({3540, 460, 140, 20});
+    plataformas.push_back({3850, 490, 150, 20});
+    plataformas.push_back({4070, 390, 160, 20});
+    plataformas.push_back({4470, 490, 150, 20});
+    plataformas.push_back({4800, 460, 140, 20});
+    plataformas.push_back({5150, 490, 160, 20});
+    plataformas.push_back({5400, 390, 160, 20});
+    plataformas.push_back({5780, 460, 120, 20});
+    // Tuneles
+    plataformas.push_back({950, 500, 180, 60});
+    plataformas.push_back({1510, 500, 120, 60});
+    plataformas.push_back({3070, 500, 180, 60});
+    plataformas.push_back({4260, 500, 180, 60});
+    plataformas.push_back({5520, 500, 150, 60});
 }
 
 void Nivel::Dibujar() {
     // El juego ya esta dentro de BeginMode2D(camara).
     // Fondo opaco cubre el blanco original sin tocar Juego.cpp.
-    DrawRectangle(-2000, -200, 8500, 1100, ColorRGB(13, 24, 49));
+    DrawRectangle(-2000, -200, 11000, 1100, ColorRGB(13, 24, 49));
 
     // Luna y halo urbano.
     DrawCircle(420, 110, 58, Fade(ColorRGB(69, 106, 159), 0.26f));
@@ -74,7 +94,7 @@ void Nivel::Dibujar() {
 
     // Siluetas de la ciudad: dos capas de profundidad.
     // Se usa una coordenada visual estable en vez de depender de texturas.
-    for (int i = -3; i < 50; ++i) {
+    for (int i = -3; i < 60; ++i) {
         int x = i * 110;
         int alto = 130 + ((i * i * 19 + i * 11 + 10000) % 120);
         DrawRectangle(x, 550 - alto, 88, alto, ColorRGB(27, 45, 76));
@@ -86,7 +106,7 @@ void Nivel::Dibujar() {
             }
         }
     }
-    for (int i = -2; i < 45; ++i) {
+    for (int i = -2; i < 46; ++i) {
         int x = i * 145 + 40;
         int alto = 95 + ((i * i * 31 + 30000) % 125);
         DrawRectangle(x, 590 - alto, 116, alto, ColorRGB(35, 56, 85));
@@ -99,9 +119,10 @@ void Nivel::Dibujar() {
         }
     }
 
-    // Plataformas: las ultimas dos son los techos de los tuneles.
+    // Clasificar por geometria, no por indice.
     for (size_t i = 0; i < plataformas.size(); ++i) {
-        DibujarPlataforma(plataformas[i], i == 0, i >= 10);
+        const Rectangle& p = plataformas[i];
+        DibujarPlataforma(p, p.y == 600, p.height == 60);
     }
 }
 

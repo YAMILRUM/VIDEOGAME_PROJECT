@@ -1,48 +1,29 @@
-
 #ifndef JUEGO_H
 #define JUEGO_H
-
 #include "Jugador.h"
 #include "Nivel.h"
 #include "Carrera.h"
 #include "raylib.h"
 #include "Obstaculo.h"
 #include "Gancho.h"
+#include "Sierra.h"
 #include <vector>
-
 class Juego {
-    private:
-    Jugador jugador1{
-        100, 300,
-        GREEN,
-        KEY_A, KEY_D,
-        KEY_W, KEY_LEFT_SHIFT,
-        KEY_S
-    };
-
-    Jugador jugador2{
-        200, 300,
-        RED,
-        KEY_LEFT, KEY_RIGHT,
-        KEY_UP, KEY_RIGHT_SHIFT,
-        KEY_DOWN
-    };
-
+private:
+    Jugador jugador1{100,300,GREEN,KEY_A,KEY_D,KEY_W,KEY_LEFT_SHIFT,KEY_S};
+    Jugador jugador2{200,300,RED,KEY_LEFT,KEY_RIGHT,KEY_UP,KEY_RIGHT_SHIFT,KEY_DOWN};
     Nivel nivel;
     Carrera carrera;
     Camera2D camara{};
     std::vector<Obstaculo> obstaculos;
-
+    std::vector<Sierra> sierras;
     Gancho gancho1;
     Gancho gancho2;
     std::vector<Vector2> puntosAnclaje;
-
-
-    public:
-        Juego();
-        void Ejecutar();
-        void Reiniciar();
-        void ReiniciarJugadores();
+public:
+    Juego();
+    void Ejecutar();
+    void Reiniciar();
+    void ReiniciarJugadores();
 };
-
 #endif

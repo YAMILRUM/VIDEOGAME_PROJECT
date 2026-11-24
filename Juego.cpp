@@ -9,11 +9,28 @@ Juego::Juego() {
     SetTargetFPS(60);
     SetExitKey(KEY_NULL); // ESC sera pausa, no cierre automatico
     Jugador::CargarSprites();
-    puntosAnclaje = {{500,250}, {1050,270}, {1600,200}, {2200,250}, {2750,220}};
-    obstaculos.emplace_back(650,570,90,30);
-    obstaculos.emplace_back(1250,570,90,30);
-    obstaculos.emplace_back(1900,570,90,30);
-    obstaculos.emplace_back(2600,570,90,30);
+    puntosAnclaje = {{500,250}, {1050,270}, {1450,250}, {1900,260}, {2170,260}, {2600,250}, {3100,270}, {3610,260}, {4100,250}, {4870,260}, {5400,250}, {5840,260}};
+    obstaculos.emplace_back(720,580,45,20);
+    obstaculos.emplace_back(1350,580,45,20);
+    obstaculos.emplace_back(1830,570,60,30);
+    obstaculos.emplace_back(2370,570,70,30);
+    obstaculos.emplace_back(2800,570,70,30);
+    obstaculos.emplace_back(3360,570,55,30);
+    obstaculos.emplace_back(4010,570,50,30);
+    obstaculos.emplace_back(4625,570,60,30);
+    obstaculos.emplace_back(5330,570,60,30);
+    obstaculos.emplace_back(6100,570,75,30);
+    // Pinchos elevados: 55 px libres a cada lado.
+    obstaculos.emplace_back(2955,466,50,24);
+    obstaculos.emplace_back(1705,466,50,24);
+    obstaculos.emplace_back(4125,366,50,24);
+    obstaculos.emplace_back(5205,466,50,24);
+    sierras.emplace_back(Vector2{1660,345}, Vector2{1790,345}, 24, 3.6f);
+    sierras.emplace_back(Vector2{2730,245}, Vector2{2730,340}, 23, 3.8f, 0.25f);
+    sierras.emplace_back(Vector2{2460,270}, Vector2{2550,270}, 25, 2.5f);
+    sierras.emplace_back(Vector2{3180,330}, Vector2{3180,455}, 25, 2.8f, 0.5f);
+    sierras.emplace_back(Vector2{3880,365}, Vector2{3980,365}, 26, 2.4f);
+    sierras.emplace_back(Vector2{5640,330}, Vector2{5640,455}, 26, 2.6f, 0.25f);
 }
 
 void Juego::Ejecutar() {
@@ -72,6 +89,7 @@ void Juego::Ejecutar() {
 
         if (pantalla == Pantalla::Jugando && cuentaRegresiva <= 0.0f &&
             !seReinicio && !carrera.EstaTerminada()) {
+            for (Sierra& sierra : sierras) sierra.Actualizar(deltaTime);
             // El gancho se actualiza ANTES de la fisica del jugador.
             auto buscarAnclaje = [&](Vector2 origen, Vector2& destino) {
                 float minima = 450.0f;
@@ -111,7 +129,7 @@ void Juego::Ejecutar() {
                 gancho1.EstaActivo() && IsKeyDown(KEY_LEFT_SHIFT),
                 gancho1.EstaActivo() && IsKeyDown(KEY_S));
             jugador2.AjustarLongitudCuerda(deltaTime,
-                gancho2.EstaActivo() && IsKeyDown(KEY_RIGHT_SHIFT),
+                gancho2.EstaActivo() && (IsKeyDown(KEY_RIGHT_SHIFT) || IsKeyDown(KEY_K)),
                 gancho2.EstaActivo() && IsKeyDown(KEY_DOWN));
 
             jugador1.Actualizar(deltaTime, nivel.ObtenerPlataformas());
@@ -119,6 +137,11 @@ void Juego::Ejecutar() {
 
             carrera.Actualizar(deltaTime, jugador1.ObtenerRectangulo(),
                                jugador2.ObtenerRectangulo());
+            // Eliminar al jugador cuando sale por debajo de la pantalla.
+            if (!carrera.EstaTerminada()) {
+                if (jugador1.ObtenerRectangulo().y >= 720.0f) carrera.EliminarJugador(1);
+                else if (jugador2.ObtenerRectangulo().y >= 720.0f) carrera.EliminarJugador(2);
+            }
             if (!carrera.EstaTerminada()) {
                 Rectangle r1 = jugador1.ObtenerRectangulo();
                 Rectangle r2 = jugador2.ObtenerRectangulo();
@@ -127,13 +150,19 @@ void Juego::Ejecutar() {
                     if (obstaculo.Colisiona(r2)) { carrera.EliminarJugador(2); break; }
                 }
             }
+            if (!carrera.EstaTerminada()) {
+                for (const Sierra& sierra : sierras) {
+                    if (sierra.Colisiona(jugador1.ObtenerRectangulo())) { carrera.EliminarJugador(1); break; }
+                    if (sierra.Colisiona(jugador2.ObtenerRectangulo())) { carrera.EliminarJugador(2); break; }
+                }
+            }
         }
 
         Rectangle rect1 = jugador1.ObtenerRectangulo();
         Rectangle rect2 = jugador2.ObtenerRectangulo();
         float centro1 = rect1.x + rect1.width/2;
         float centro2 = rect2.x + rect2.width/2;
-        float objetivoX = Clamp(std::max(centro1,centro2),640.0f,2560.0f);
+        float objetivoX = Clamp(std::max(centro1,centro2),640.0f,5760.0f);
         camara.target = {objetivoX,360};
         float bordeIzquierdo = camara.target.x - camara.offset.x/camara.zoom;
         if (pantalla == Pantalla::Jugando && cuentaRegresiva <= 0.0f &&
@@ -157,6 +186,7 @@ void Juego::Ejecutar() {
                        {punto.x + 6.0f, punto.y + 12.0f}, 2.0f, GOLD);
         }
         for (const Obstaculo& obstaculo : obstaculos) obstaculo.Dibujar();
+        for (const Sierra& sierra : sierras) sierra.Dibujar();
         Rectangle r1 = jugador1.ObtenerRectangulo();
         Rectangle r2 = jugador2.ObtenerRectangulo();
         gancho1.Dibujar({r1.x+r1.width/2,r1.y+r1.height/2});
@@ -200,7 +230,7 @@ void Juego::Ejecutar() {
             } else if (pantalla == Pantalla::Controles) {
                 DrawText("VERDE: A/D mover | W saltar | SHIFT sprint | S slide | E gancho", 210, 265, 20, WHITE);
                 DrawText("ROJO: FLECHAS mover/saltar/slide | SHIFT DER sprint | L gancho", 185, 305, 20, WHITE);
-                DrawText("CON GANCHO: SHIFT recoge | ABAJO/S extiende", 290, 350, 20, GOLD);
+                DrawText("GANCHO: SHIFT recoge (rojo: K tambien) | ABAJO/S extiende", 210, 350, 20, GOLD);
                 DrawText("ESC pausa | ENTER siguiente ronda | R reiniciar", 315, 390, 20, WHITE);
                 if (boton({460, 485, 360, 64}, "VOLVER")) pantalla = Pantalla::Menu;
             } else if (pantalla == Pantalla::Pausa) {
@@ -219,6 +249,7 @@ void Juego::Ejecutar() {
 }
 
 void Juego::ReiniciarJugadores() {
+    for (Sierra& sierra : sierras) sierra.Reiniciar();
     gancho1.Soltar();
     gancho2.Soltar();
     jugador1 = Jugador(100,300,GREEN,KEY_A,KEY_D,KEY_W,KEY_LEFT_SHIFT,KEY_S);

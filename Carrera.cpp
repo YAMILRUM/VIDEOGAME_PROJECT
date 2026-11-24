@@ -2,10 +2,18 @@
 #include <cstdio>
 
 Carrera::Carrera() {
-    tiempo = 0; ganador = 0; terminada = false;
-    puntosJugador1 = 0; puntosJugador2 = 0; puntosParaGanar = 3;
-    meta = {3100, 500, 30, 100};
+   
+    tiempo = 0;
+    ganador = 0;
+    terminada = false;
+
+    puntosJugador1 = 0;
+    puntosJugador2 = 0;
+    puntosParaGanar = 3;
+
+    meta = {6300, 500, 30, 100};
 }
+
 
 void Carrera::RegistrarVictoria(int jugador) {
     if (terminada) return;
