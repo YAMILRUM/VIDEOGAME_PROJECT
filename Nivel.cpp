@@ -46,7 +46,19 @@ void DibujarPlataforma(Rectangle p, bool suelo, bool tunel) {
 }
 } // namespace
 
-Nivel::Nivel() {
+Nivel::Nivel() { Cargar(TipoMapa::Industrial); }
+
+void Nivel::Cargar(TipoMapa nuevo) {
+    tipo = nuevo;
+    plataformas.clear();
+    if (tipo == TipoMapa::Jungla) {
+        plataformas = {{0,600,1800,120},{2040,600,1960,120},{4260,600,2140,120},
+            {430,500,180,20},{700,405,180,20},{1150,500,180,20},
+            {1850,480,140,20},{2400,500,180,20},{2670,405,180,20},
+            {3500,500,180,20},{4060,480,140,20},{4750,500,180,20},
+            {5100,405,180,20},{5700,500,180,20}};
+        return;
+    }
     // Tramos de suelo
     plataformas.push_back({0, 600, 2050, 120});
     plataformas.push_back({2290, 600, 1190, 120});
@@ -82,7 +94,92 @@ Nivel::Nivel() {
     plataformas.push_back({5520, 500, 150, 60});
 }
 
-void Nivel::Dibujar() {
+void Nivel::Dibujar(float camaraX) {
+    if (tipo == TipoMapa::Jungla) {
+        const float t = (float)GetTime();
+        const float desplazamiento = (camaraX - 640.0f);
+        // Capas decorativas: nunca se agregan a plataformas.
+        DrawRectangleGradientV(-2000,-200,11000,1100,ColorRGB(32,83,79),ColorRGB(203,220,151));
+        float sol = 420 + desplazamiento * 0.88f;
+        DrawCircleV({sol,110},110,ColorRGB(246,222,143,35));
+        DrawCircleV({sol,110},65,ColorRGB(255,235,170,190));
+        for(int capa=0;capa<3;++capa){
+            float par = desplazamiento * (0.78f-capa*0.22f);
+            Color c = capa==0?ColorRGB(104,155,126):capa==1?ColorRGB(66,119,91):ColorRGB(37,85,65);
+            for(int i=-4;i<31;++i){
+                float x=i*290+par;
+                float h=180+(i*i*37+capa*71)%160;
+                DrawEllipse((int)x, (int)(490-h*.5f),205,(int)h,c);
+                DrawRectangle((int)x-15,(int)(490-h*.5f),30,(int)(h*.5f+125),c);
+            }
+        }
+        // Piramides escalonadas, con escalinata y santuario.
+        for(int k=0;k<3;++k){
+            float x=1100+k*2200+desplazamiento*.18f;
+            float escala=k==2?1.18f:.85f;
+            for(int j=0;j<7;++j){
+                float w=(620-j*72)*escala, y=555-j*43*escala;
+                DrawRectangleRec({x-w/2,y,w,46*escala},ColorRGB(104,119,92));
+                DrawRectangleRec({x-w/2,y,w,5*escala},ColorRGB(160,168,121));
+                for(float a=x-w/2+24;a<x+w/2-10;a+=48) DrawLineEx({a,y+6},{a,y+40*escala},1,ColorRGB(78,99,79));
+                DrawRectangleRec({x-42*escala,y,84*escala,46*escala},ColorRGB(139,145,108));
+                for(int s=0;s<4;++s) DrawLineEx({x-42*escala,y+s*11*escala},{x+42*escala,y+s*11*escala},2,ColorRGB(91,110,84));
+            }
+            float y=555-6*43*escala;
+            DrawRectangleRec({x-68*escala,y-75*escala,136*escala,75*escala},ColorRGB(137,145,104));
+            DrawRectangleRec({x-20*escala,y-50*escala,40*escala,50*escala},ColorRGB(42,70,58));
+            DrawRectangleRec({x-80*escala,y-80*escala,160*escala,12*escala},ColorRGB(171,175,119));
+        }
+        // Arboles cercanos con raices, ramas y copas superpuestas.
+        for(int i=-2;i<23;++i){
+            float x=i*325+90+desplazamiento*.06f;
+            float h=230+(i*i*29)%125;
+            DrawLineEx({x,610},{x+12,610-h},32,ColorRGB(51,77,49));
+            DrawLineEx({x+5,590},{x+17,610-h},9,ColorRGB(90,108,61));
+            DrawLineEx({x,555},{x-60,610-h*.65f},15,ColorRGB(51,77,49));
+            for(int j=0;j<5;++j){
+                float a=x+(j-2)*42, b=610-h-22+(j*j*17)%35;
+                DrawEllipse((int)a,(int)b,75,48,ColorRGB(29,91,54));
+                DrawEllipse((int)a,(int)b-15,63,32,ColorRGB(49,119,62));
+            }
+        }
+        // Cascadas y rios solo en los huecos reales del suelo.
+        for(float x : {1800.0f,4000.0f}){
+            float w=x<2000?240:260;
+            DrawRectangleGradientH((int)x+35,245,95,475,ColorRGB(64,145,147,130),ColorRGB(183,231,211,190));
+            for(int j=0;j<12;++j){
+                float yy=245+fmodf(t*150+j*43,455);
+                DrawLineEx({x+42+j*7,yy},{x+42+j*7,yy+20},2,ColorRGB(213,250,230,150));
+            }
+            DrawRectangleGradientV((int)x,675,(int)w,225,ColorRGB(47,144,146),ColorRGB(15,65,78));
+            for(int j=0;j<8;++j){
+                float a=x+12+j*27, yy=683+8*sinf(t*2+j);
+                DrawLineEx({a,yy},{a+17,yy},2,ColorRGB(172,226,209));
+            }
+        }
+        // Piedra jugable: borde superior brillante y detalles dentro del rectangulo.
+        for(const Rectangle& p:plataformas){
+            DrawRectangleRec(p,ColorRGB(81,76,58));
+            DrawRectangleRec({p.x+2,p.y+5,p.width-4,p.height-7},ColorRGB(139,132,96));
+            for(float y=p.y+9;y<p.y+p.height-3;y+=24){
+                for(float x=p.x+3;x<p.x+p.width-3;x+=38){
+                    float w=fminf(35,p.x+p.width-x-2), h=fminf(20,p.y+p.height-y-2);
+                    if(w>0&&h>0) DrawRectangleRec({x,y,w,h},ColorRGB(153,145,106));
+                }
+            }
+            DrawRectangleRec({p.x,p.y,p.width,5},ColorRGB(172,211,91));
+            for(float x=p.x+4;x<p.x+p.width-5;x+=13){
+                DrawRectangleRec({x,p.y+5,5,4},ColorRGB(83,139,55));
+            }
+            DrawRectangleLinesEx(p,1,ColorRGB(56,70,45));
+        }
+        // Portal decorativo detras de la meta existente.
+        DrawRectangle(6210,430,32,170,ColorRGB(129,113,69));
+        DrawRectangle(6350,430,32,170,ColorRGB(129,113,69));
+        DrawRectangle(6200,410,192,32,ColorRGB(196,165,81));
+        DrawRectangle(6220,400,152,12,ColorRGB(238,206,110));
+        return;
+    }
     // El juego ya esta dentro de BeginMode2D(camara).
     // Fondo opaco cubre el blanco original sin tocar Juego.cpp.
     DrawRectangle(-2000, -200, 11000, 1100, ColorRGB(13, 24, 49));

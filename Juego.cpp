@@ -9,6 +9,22 @@ Juego::Juego() {
     SetTargetFPS(60);
     SetExitKey(KEY_NULL); // ESC sera pausa, no cierre automatico
     Jugador::CargarSprites();
+    CargarMapa(TipoMapa::Industrial);
+}
+
+void Juego::CargarMapa(TipoMapa tipo) {
+    nivel.Cargar(tipo);
+    obstaculos.clear();
+    sierras.clear();
+    puntosAnclaje.clear();
+    if (tipo == TipoMapa::Jungla) {
+        puntosAnclaje = {{650,300},{1250,280},{1950,290},{2650,280},{3350,280},{4050,280},{4750,280},{5500,280},{6000,280}};
+        obstaculos.emplace_back(900,580,45,20);
+        obstaculos.emplace_back(2900,575,60,25);
+        obstaculos.emplace_back(4500,575,60,25);
+        Reiniciar();
+        return;
+    }
     puntosAnclaje = {{500,250}, {1050,270}, {1450,250}, {1900,260}, {2170,260}, {2600,250}, {3100,270}, {3610,260}, {4100,250}, {4870,260}, {5400,250}, {5840,260}};
     obstaculos.emplace_back(720,580,45,20);
     obstaculos.emplace_back(1350,580,45,20);
@@ -31,6 +47,7 @@ Juego::Juego() {
     sierras.emplace_back(Vector2{3180,330}, Vector2{3180,455}, 25, 2.8f, 0.5f);
     sierras.emplace_back(Vector2{3880,365}, Vector2{3980,365}, 26, 2.4f);
     sierras.emplace_back(Vector2{5640,330}, Vector2{5640,455}, 26, 2.6f, 0.25f);
+    Reiniciar();
 }
 
 void Juego::Ejecutar() {
@@ -39,7 +56,7 @@ void Juego::Ejecutar() {
     camara.rotation = 0;
     camara.zoom = 1.0f;
 
-    enum class Pantalla { Menu, Controles, Jugando, Pausa };
+    enum class Pantalla { Menu, Mapas, Controles, Jugando, Pausa };
     Pantalla pantalla = Pantalla::Menu;
     bool salir = false;
     float cuentaRegresiva = 3.75f;
@@ -174,8 +191,12 @@ void Juego::Ejecutar() {
         BeginDrawing();
         ClearBackground(RAYWHITE);
         BeginMode2D(camara);
-        nivel.Dibujar();
+        nivel.Dibujar(camara.target.x);
         for (const Vector2& punto : puntosAnclaje) {
+            if (nivel.EsJungla()) {
+                DrawLineEx({punto.x-12,0},{punto.x,punto.y},5,Color{55,100,46,255});
+                DrawLineEx({punto.x-9,0},{punto.x+2,punto.y},2,Color{128,172,68,255});
+            }
             float pulso = 1.5f + 1.0f * sinf((float)GetTime() * 3.0f + punto.x * 0.01f);
             DrawCircleV(punto, 16.0f + pulso, Fade(ORANGE, 0.16f));
             DrawCircleV(punto, 12.0f, Color{48, 61, 83, 255});
@@ -217,16 +238,27 @@ void Juego::Ejecutar() {
         if (pantalla != Pantalla::Jugando) {
             DrawRectangle(0, 0, 1280, 720, Fade(Color{6, 12, 28, 255}, 0.91f));
             DrawText("HUSS HUSS", 430, 96, 62, GOLD);
-            DrawText("CARRERAS FUTURISTAS", 455, 170, 24, SKYBLUE);
+            DrawText("CARRERAS DE AVENTURA", 455, 170, 24, SKYBLUE);
 
             if (pantalla == Pantalla::Menu) {
                 if (boton({460, 270, 360, 64}, "JUGAR")) {
-                    Reiniciar();
-                    cuentaRegresiva = 3.75f;
-                    pantalla = Pantalla::Jugando;
+                    pantalla = Pantalla::Mapas;
                 }
                 if (boton({460, 360, 360, 64}, "CONTROLES")) pantalla = Pantalla::Controles;
                 if (boton({460, 450, 360, 64}, "SALIR")) salir = true;
+            } else if (pantalla == Pantalla::Mapas) {
+                DrawText("SELECCIONA EL MAPA", 465, 225, 28, WHITE);
+                if (boton({190, 310, 420, 90}, "CIUDAD INDUSTRIAL")) {
+                    CargarMapa(TipoMapa::Industrial);
+                    cuentaRegresiva = 3.75f;
+                    pantalla = Pantalla::Jugando;
+                }
+                if (boton({670, 310, 420, 90}, "EL TEMPLO PERDIDO")) {
+                    CargarMapa(TipoMapa::Jungla);
+                    cuentaRegresiva = 3.75f;
+                    pantalla = Pantalla::Jugando;
+                }
+                if (boton({460, 490, 360, 64}, "VOLVER")) pantalla = Pantalla::Menu;
             } else if (pantalla == Pantalla::Controles) {
                 DrawText("VERDE: A/D mover | W saltar | SHIFT sprint | S slide | E gancho", 210, 265, 20, WHITE);
                 DrawText("ROJO: FLECHAS mover/saltar/slide | SHIFT DER sprint | L gancho", 185, 305, 20, WHITE);
