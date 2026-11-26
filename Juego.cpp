@@ -16,37 +16,43 @@ void Juego::CargarMapa(TipoMapa tipo) {
     nivel.Cargar(tipo);
     obstaculos.clear();
     sierras.clear();
+    trampasJungla.clear();
     puntosAnclaje.clear();
     if (tipo == TipoMapa::Jungla) {
-        puntosAnclaje = {{650,300},{1250,280},{1950,290},{2650,280},{3350,280},{4050,280},{4750,280},{5500,280},{6000,280}};
-        obstaculos.emplace_back(900,580,45,20);
-        obstaculos.emplace_back(2900,575,60,25);
-        obstaculos.emplace_back(4500,575,60,25);
+        puntosAnclaje = {{550,300},{1250,280},{1950,290},{2650,280},{3350,280},{4130,280},{4750,280},{5500,280},{6000,280}};
+        trampasJungla.emplace_back(TipoTrampaJungla::Planta, Vector2{850,600});
+        trampasJungla.emplace_back(TipoTrampaJungla::Planta, Vector2{1450,600}, 1.2f);
+        trampasJungla.emplace_back(TipoTrampaJungla::Dardo, Vector2{1350,548}, 0, 330);
+        trampasJungla.emplace_back(TipoTrampaJungla::Pendulo, Vector2{2850,350}, 0, 195);
+        trampasJungla.emplace_back(TipoTrampaJungla::Pendulo, Vector2{3450,350}, 1.2f, 195);
+        trampasJungla.emplace_back(TipoTrampaJungla::Bloque, Vector2{3780,350}, 0, 225);
+        trampasJungla.emplace_back(TipoTrampaJungla::Tronco, Vector2{5450,600}, 0, 850);
+        trampasJungla.emplace_back(TipoTrampaJungla::Planta, Vector2{5800,600}, 0.6f);
+        trampasJungla.emplace_back(TipoTrampaJungla::Dardo, Vector2{6050,548}, 2.0f, 210);
+        obstaculos.emplace_back(6100,580,45,20);
         Reiniciar();
         return;
     }
     puntosAnclaje = {{500,250}, {1050,270}, {1450,250}, {1900,260}, {2170,260}, {2600,250}, {3100,270}, {3610,260}, {4100,250}, {4870,260}, {5400,250}, {5840,260}};
     obstaculos.emplace_back(720,580,45,20);
     obstaculos.emplace_back(1350,580,45,20);
-    obstaculos.emplace_back(1830,570,60,30);
-    obstaculos.emplace_back(2370,570,70,30);
-    obstaculos.emplace_back(2800,570,70,30);
+    obstaculos.emplace_back(1830,575,50,25);
+    obstaculos.emplace_back(2370,575,55,25);
+    obstaculos.emplace_back(2800,575,55,25);
     obstaculos.emplace_back(3360,570,55,30);
     obstaculos.emplace_back(4010,570,50,30);
     obstaculos.emplace_back(4625,570,60,30);
     obstaculos.emplace_back(5330,570,60,30);
-    obstaculos.emplace_back(6100,570,75,30);
+    obstaculos.emplace_back(6100,570,65,30);
     // Pinchos elevados: 55 px libres a cada lado.
-    obstaculos.emplace_back(2955,466,50,24);
-    obstaculos.emplace_back(1705,466,50,24);
     obstaculos.emplace_back(4125,366,50,24);
     obstaculos.emplace_back(5205,466,50,24);
-    sierras.emplace_back(Vector2{1660,345}, Vector2{1790,345}, 24, 3.6f);
-    sierras.emplace_back(Vector2{2730,245}, Vector2{2730,340}, 23, 3.8f, 0.25f);
-    sierras.emplace_back(Vector2{2460,270}, Vector2{2550,270}, 25, 2.5f);
-    sierras.emplace_back(Vector2{3180,330}, Vector2{3180,455}, 25, 2.8f, 0.5f);
-    sierras.emplace_back(Vector2{3880,365}, Vector2{3980,365}, 26, 2.4f);
-    sierras.emplace_back(Vector2{5640,330}, Vector2{5640,455}, 26, 2.6f, 0.25f);
+    sierras.emplace_back(Vector2{1660,345}, Vector2{1790,345}, 21, 4.50f);
+    sierras.emplace_back(Vector2{2730,245}, Vector2{2730,340}, 20, 4.75f, 0.25f);
+    sierras.emplace_back(Vector2{2460,270}, Vector2{2550,270}, 22, 3.12f);
+    sierras.emplace_back(Vector2{3180,330}, Vector2{3180,455}, 22, 3.50f, 0.5f);
+    sierras.emplace_back(Vector2{3880,365}, Vector2{3980,365}, 23, 3.00f);
+    sierras.emplace_back(Vector2{5640,330}, Vector2{5640,455}, 23, 3.25f, 0.25f);
     Reiniciar();
 }
 
@@ -107,6 +113,7 @@ void Juego::Ejecutar() {
         if (pantalla == Pantalla::Jugando && cuentaRegresiva <= 0.0f &&
             !seReinicio && !carrera.EstaTerminada()) {
             for (Sierra& sierra : sierras) sierra.Actualizar(deltaTime);
+            for (auto& trampa : trampasJungla) trampa.Actualizar(deltaTime);
             // El gancho se actualiza ANTES de la fisica del jugador.
             auto buscarAnclaje = [&](Vector2 origen, Vector2& destino) {
                 float minima = 450.0f;
@@ -175,6 +182,12 @@ void Juego::Ejecutar() {
             }
         }
 
+        if (pantalla == Pantalla::Jugando && cuentaRegresiva <= 0.0f && !seReinicio && !carrera.EstaTerminada()) {
+            for (const auto& trampa : trampasJungla) {
+                if (trampa.Colisiona(jugador1.ObtenerRectangulo())) { carrera.EliminarJugador(1); break; }
+                if (trampa.Colisiona(jugador2.ObtenerRectangulo())) { carrera.EliminarJugador(2); break; }
+            }
+        }
         Rectangle rect1 = jugador1.ObtenerRectangulo();
         Rectangle rect2 = jugador2.ObtenerRectangulo();
         float centro1 = rect1.x + rect1.width/2;
@@ -208,6 +221,7 @@ void Juego::Ejecutar() {
         }
         for (const Obstaculo& obstaculo : obstaculos) obstaculo.Dibujar();
         for (const Sierra& sierra : sierras) sierra.Dibujar();
+        for (const auto& trampa : trampasJungla) trampa.Dibujar();
         Rectangle r1 = jugador1.ObtenerRectangulo();
         Rectangle r2 = jugador2.ObtenerRectangulo();
         gancho1.Dibujar({r1.x+r1.width/2,r1.y+r1.height/2});
@@ -248,12 +262,12 @@ void Juego::Ejecutar() {
                 if (boton({460, 450, 360, 64}, "SALIR")) salir = true;
             } else if (pantalla == Pantalla::Mapas) {
                 DrawText("SELECCIONA EL MAPA", 465, 225, 28, WHITE);
-                if (boton({190, 310, 420, 90}, "CIUDAD INDUSTRIAL")) {
+                if (boton({190, 310, 420, 90}, "PUEBLA 2077")) {
                     CargarMapa(TipoMapa::Industrial);
                     cuentaRegresiva = 3.75f;
                     pantalla = Pantalla::Jugando;
                 }
-                if (boton({670, 310, 420, 90}, "EL TEMPLO PERDIDO")) {
+                if (boton({670, 310, 420, 90}, "PUEBLA 1400")) {
                     CargarMapa(TipoMapa::Jungla);
                     cuentaRegresiva = 3.75f;
                     pantalla = Pantalla::Jugando;
@@ -282,6 +296,7 @@ void Juego::Ejecutar() {
 
 void Juego::ReiniciarJugadores() {
     for (Sierra& sierra : sierras) sierra.Reiniciar();
+    for (auto& trampa : trampasJungla) trampa.Reiniciar();
     gancho1.Soltar();
     gancho2.Soltar();
     jugador1 = Jugador(100,300,GREEN,KEY_A,KEY_D,KEY_W,KEY_LEFT_SHIFT,KEY_S);

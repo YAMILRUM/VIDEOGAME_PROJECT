@@ -7,6 +7,7 @@
 #include "Obstaculo.h"
 #include "Gancho.h"
 #include "Sierra.h"
+#include "TrampaJungla.h"
 #include <vector>
 class Juego {
 private:
@@ -18,6 +19,7 @@ private:
     Camera2D camara{};
     std::vector<Obstaculo> obstaculos;
     std::vector<Sierra> sierras;
+    std::vector<TrampaJungla> trampasJungla;
     Gancho gancho1;
     Gancho gancho2;
     std::vector<Vector2> puntosAnclaje;
