@@ -50,7 +50,16 @@ Nivel::Nivel() { Cargar(TipoMapa::Industrial); }
 
 void Nivel::Cargar(TipoMapa nuevo) {
     tipo = nuevo;
+    tiempoBalsas = 0;
     plataformas.clear();
+    if (tipo == TipoMapa::Playa) {
+        plataformas = {{0,600,2200,120},{2390,600,780,120},{3350,600,900,120},{4450,600,850,120},{5500,600,900,120},
+            {450,500,180,20},{700,405,170,20},{1100,500,180,20},{1450,500,180,60},{1740,490,180,20},
+            {2220,515,150,20},{2600,490,180,20},{2850,395,170,20},{3190,515,140,20},
+            {3500,500,180,20},{3750,400,180,20},{3990,500,180,60},{4270,515,160,20},
+            {4650,500,180,20},{4900,405,180,20},{5320,515,160,20},{5700,500,180,20},{5940,405,180,20},{4260,575,180,20},{5310,575,180,20}};
+        return;
+    }
     if (tipo == TipoMapa::Jungla) {
         plataformas = {{0,600,1800,120},{2040,600,1960,120},{4260,600,2140,120},
             {430,500,180,20},{620,405,160,20},{1050,500,180,20},
@@ -94,7 +103,110 @@ void Nivel::Cargar(TipoMapa nuevo) {
     plataformas.push_back({5520, 500, 150, 60});
 }
 
+void Nivel::ReiniciarBalsas() {
+    tiempoBalsas = 0;
+    ActualizarBalsas(0);
+}
+void Nivel::ActualizarBalsas(float dt) {
+    if (tipo != TipoMapa::Playa) return;
+    tiempoBalsas += fminf(fmaxf(dt,0),.033f);
+    for (auto& p : plataformas) {
+        if (p.x == 4260 || p.x == 5310)
+            p.y = 575 + 12*sinf(tiempoBalsas*1.5f+(p.x==5310?2.f:0.f));
+    }
+}
+
 void Nivel::Dibujar(float camaraX) {
+    if (tipo == TipoMapa::Playa) {
+        const float t=(float)GetTime(), d=camaraX-640.f;
+        DrawRectangleGradientV(-2000,-200,11000,800,ColorRGB(100,125,207),ColorRGB(255,173,120));
+        float sun=920+d*.94f;
+        for(int r=150;r>=90;r-=15) DrawCircleV({sun,290},r,ColorRGB(255,220,150,18));
+        DrawCircleV({sun,290},78,ColorRGB(255,231,161));
+        for(int i=-2;i<18;i++) {
+            float x=i*530+d*.85f;
+            DrawEllipse((int)x,145+i%3*35,110,15,ColorRGB(255,200,182,130));
+            DrawEllipse((int)x+65,140+i%3*35,70,20,ColorRGB(255,211,190,120));
+        }
+        DrawRectangleGradientV(-2000,390,11000,510,ColorRGB(39,124,167),ColorRGB(36,208,192));
+        for(int i=-2;i<18;i++) {
+            float x=i*510+d*.72f;
+            DrawEllipse((int)x,390,160,22,ColorRGB(80,139,142));
+            DrawEllipse((int)x+50,382,70,26,ColorRGB(91,151,145));
+        }
+        // Hoteles con balcones, en la franja turistica del fondo.
+        for(int i=0;i<12;i++) {
+            float x=40+i*210+d*.48f, h=110+(i*73)%125, y=420-h;
+            DrawRectangleGradientH((int)x,(int)y,155,(int)h,ColorRGB(246,208,181),ColorRGB(180,143,156));
+            DrawRectangleRec({x+12,y-12,131,12},ColorRGB(246,227,197));
+            for(float yy=y+18;yy<405;yy+=24) {
+                for(int j=0;j<5;j++) DrawRectangleRec({x+9+j*29.f,yy,19,13},ColorRGB(83,146,166));
+                DrawRectangleRec({x-3,yy+14,161,3},ColorRGB(255,232,202));
+            }
+        }
+        // Olas y reflejos, sin colision.
+        for(int k=0;k<7;k++) for(int i=-2;i<80;i++) {
+            float x=i*125+d*.25f+22*sinf(t*.8f+k), y=430+k*32+5*sinf(i*.8f+t+k);
+            if(x<camaraX-760||x>camaraX+760) continue;
+            DrawLineEx({x,y},{x+42+k*4.f,y},2,ColorRGB(209,255,239,85));
+        }
+        for(int i=0;i<8;i++) {
+            float x=fmodf(t*17+i*980,8200)-500+d*.3f,y=110+i%3*34;
+            DrawLineEx({x-12,y-5},{x,y},2,ColorRGB(75,78,108));
+            DrawLineEx({x,y},{x+12,y-5},2,ColorRGB(75,78,108));
+        }
+        // Barco turistico, silueta decorativa detras de la cubierta jugable.
+        DrawRectangleRec({3350,545,900,55},ColorRGB(108,62,47));
+        DrawTriangle({3350,545},{3450,545},{3450,600},ColorRGB(108,62,47));
+        for(int i=0;i<3;i++) {
+            float x=3500+i*270.f;
+            DrawLineEx({x,540},{x,235},9,ColorRGB(103,66,53));
+            DrawTriangle({x+8,250},{x+8,420},{x+125,420},ColorRGB(255,228,185));
+        }
+        // Palmeras curvas y hojas animadas, siempre decorativas.
+        for(int i=0;i<19;i++) {
+            float x=180+i*310.f;
+            if(x>2100&&x<4450) continue;
+            Vector2 base={x,600}, top={x+24,600-(180-(i%3)*18.f)*1.61f};
+            Vector2 curva={x+8,600-(600-top.y)*.45f};
+            DrawLineEx(base,curva,15,ColorRGB(139,91,61));
+            DrawLineEx(curva,top,12,ColorRGB(164,112,69));
+            for(int j=0;j<7;j++) {
+                float a=3.14159f+j*3.14159f/6, sway=5*sinf(t*1.5f+i+j);
+                Vector2 tip={top.x+85*cosf(a),top.y+48*sinf(a)+sway};
+                Vector2 mid={(top.x+tip.x)/2,(top.y+tip.y)/2-15};
+                DrawTriangle(top,mid,tip,ColorRGB(35,123,85));
+                DrawTriangle(top,tip,{mid.x,mid.y+22},ColorRGB(66,163,94));
+            }
+            DrawCircleV({top.x-5,top.y+8},7,ColorRGB(109,73,43));
+        }
+        for(const Rectangle& p:plataformas) {
+            if(p.x==4260 || p.x==5310) {
+                for(int j=0;j<6;j++) {
+                    float x=p.x+j*30.f;
+                    DrawRectangleRec({x,p.y,30,20},ColorRGB(126,76,42));
+                    DrawRectangleRec({x+2,p.y,26,5},ColorRGB(221,162,94));
+                    DrawEllipse((int)x+15,(int)p.y+14,12,5,ColorRGB(173,111,61));
+                }
+                for(float x : {p.x+18,p.x+155}) DrawRectangleRec({x,p.y,7,20},ColorRGB(235,210,151));
+                continue;
+            }
+            bool madera=(p.x>=2200&&p.x<4450)||p.height==60;
+            Color base=madera?ColorRGB(151,96,59):ColorRGB(224,180,112);
+            DrawRectangleRec(p,base);
+            DrawRectangleRec({p.x,p.y,p.width,5},madera?ColorRGB(245,194,129):ColorRGB(255,230,174));
+            if(madera) {
+                for(float x=p.x+24;x<p.x+p.width-3;x+=38) {
+                    DrawLineEx({x,p.y+5},{x,p.y+p.height},2,ColorRGB(106,67,46));
+                    DrawCircleV({x-5,p.y+9},2,ColorRGB(90,64,52));
+                }
+            } else {
+                for(float x=p.x+12;x<p.x+p.width-8;x+=31) DrawEllipse((int)x,(int)(p.y+12),4,2,ColorRGB(190,144,91));
+                if(p.height>60) DrawRectangleRec({p.x,p.y+35,p.width,p.height-35},ColorRGB(195,147,91));
+            }
+        }
+        return;
+    }
     if (tipo == TipoMapa::Jungla) {
         const float t = (float)GetTime();
         const float d = camaraX - 640.0f;
@@ -112,20 +224,42 @@ void Nivel::Dibujar(float camaraX) {
                 DrawEllipse((int)x,(int)(610-h*.65f),140,(int)(h*.42f),c);
             }
         }
-        // Templos de piedra erosionada, en el fondo.
+        // Basamentos mesoamericanos: talud, tablero y escalinata ceremonial.
         for(int k=0;k<3;k++) {
             float x=850+k*2300+d*.28f;
+            Color piedra=ColorRGB(137,151,117), sombra=ColorRGB(68,96,78);
+            Color rojo=ColorRGB(151,96,67), turquesa=ColorRGB(76,140,125);
             for(int j=0;j<6;j++) {
-                float w=560-j*78, y=565-j*48;
-                DrawRectangleRec({x-w/2,y,w,52},ColorRGB(89,112,88));
-                DrawRectangleRec({x-w/2,y,w,7},ColorRGB(146,164,112));
-                for(float a=x-w/2+22;a<x+w/2-8;a+=43) DrawLineEx({a,y+8},{a,y+49},2,ColorRGB(67,94,76));
-                DrawRectangleRec({x-37,y,74,52},ColorRGB(124,141,103));
-                for(int s=0;s<4;s++) DrawLineEx({x-37,y+s*13.f},{x+37,y+s*13.f},2,ColorRGB(75,103,81));
+                float w=570-j*78, y=565-j*48, l=x-w/2, r=x+w/2;
+                DrawTriangle({l,y+48},{r,y+48},{r-19,y+10},sombra);
+                DrawTriangle({l,y+48},{r-19,y+10},{l+19,y+10},sombra);
+                DrawRectangleRec({l+19,y,w-38,18},piedra);
+                DrawRectangleRec({l+15,y-3,w-30,5},ColorRGB(177,183,139));
+                DrawRectangleRec({l+24,y+5,w-48,8},rojo);
+                for(float q=l+30;q<r-35;q+=34) {
+                    DrawRectangleLinesEx({q,y+5,23,8},1,turquesa);
+                    DrawLineEx({q,y+23},{q-5,y+44},1,ColorRGB(91,116,91));
+                }
+                DrawRectangleRec({x-48,y-3,96,51},ColorRGB(111,132,102));
+                for(int z=0;z<4;z++) {
+                    DrawRectangleRec({x-36,y+z*12.f,72,10},piedra);
+                    DrawRectangleRec({x-36,y+z*12.f+8,72,3},sombra);
+                }
+                DrawRectangleRec({x-48,y-3,10,51},ColorRGB(165,175,130));
+                DrawRectangleRec({x+38,y-3,10,51},ColorRGB(165,175,130));
+                for(int z=0;z<4;z++) DrawEllipse((int)(l+30+z*17),(int)(y+16),14,4,ColorRGB(62,117,71));
             }
-            DrawRectangleRec({x-75,245,150,80},ColorRGB(111,135,99));
-            DrawRectangleRec({x-24,266,48,59},ColorRGB(24,64,55));
-            DrawRectangleRec({x-90,235,180,15},ColorRGB(161,174,117));
+            DrawRectangleRec({x-80,245,160,80},sombra);
+            DrawRectangleRec({x-73,251,146,74},piedra);
+            DrawRectangleRec({x-25,270,50,55},ColorRGB(24,64,55));
+            for(float q : {x-62,x+42}) {
+                DrawRectangleRec({q,265,20,60},rojo);
+                DrawRectangleLinesEx({q+4,271,12,16},2,turquesa);
+                DrawRectangleLinesEx({q+4,292,12,16},2,turquesa);
+            }
+            DrawRectangleRec({x-92,235,184,15},piedra);
+            DrawRectangleRec({x-82,225,164,10},rojo);
+            DrawRectangleRec({x-65,217,130,8},piedra);
             for(int j=0;j<7;j++) DrawLineEx({x-80+j*25.f,249},{x-85+j*25.f,280+(j*j%4)*12.f},3,ColorRGB(52,111,65));
         }
         // Arboles gigantes: troncos, ramas, doseles y lianas.
@@ -255,17 +389,45 @@ void Nivel::Dibujar(float camaraX) {
     float v=370+d*.82f;
     DrawTriangle({v-440,500},{v+460,500},{v,205},ColorRGB(38,31,72));
     DrawTriangle({v-100,272},{v+105,272},{v,205},ColorRGB(130,120,171));
-    for(int layer=0;layer<2;layer++) {
-        float par=d*(layer==0?.65f:.30f);
+    // Tres estratos de arquitectura: siluetas, cristal y torres escalonadas.
+    for(int layer=0;layer<3;layer++) {
+        float par=d*(layer==0?.76f:layer==1?.57f:.28f);
         for(int i=-5;i<65;i++) {
-            float x=i*132+par, h=110+(i*i*31+layer*67)%200, y=580-h;
-            Color body=layer==0?ColorRGB(30,32,67):ColorRGB(20,25,52);
-            DrawRectangleRec({x,y,104,h},body);
-            DrawRectangleRec({x+8,y-12,72,12},body);
-            DrawLineEx({x+3,y},{x+3,580},2,Fade(layer?cyan:violet,.42f));
-            for(int a=0;a<4;a++) for(int b=0;b<(int)h/22-1;b++) if((i+a+b*3)%5!=0)
-                DrawRectangleRec({x+13+a*22.f,y+15+b*22.f,10,4},Fade((a+b)%5==0?pink:cyan,layer?.35f:.18f));
-            if(i%5==0) { DrawLineEx({x+50,y-12},{x+50,y-48},2,body); DrawCircleV({x+50,y-48},3,Fade(pink,.5f+.4f*sinf(t*3+i))); }
+            int seed=(i+10)*137+layer*83;
+            float x=i*145+par, w=85+seed%48, h=100+seed%235, y=580-h;
+            if(x+w<camaraX-750 || x>camaraX+750) continue;
+            Color body=layer==0?ColorRGB(42,34,77):layer==1?ColorRGB(28,38,76):ColorRGB(17,25,49);
+            Color edge=layer==0?violet:(seed%3==0?pink:cyan);
+            DrawRectangleGradientH((int)x,(int)y,(int)w,(int)h,body,ColorRGB(46,55,91));
+            DrawRectangleRec({x+w*.78f,y,w*.22f,h},Fade(ColorRGB(8,15,34),.55f));
+            if(seed%3==0) {
+                DrawRectangleRec({x+w*.16f,y-30,w*.68f,30},body);
+                DrawRectangleRec({x+w*.32f,y-48,w*.36f,18},body);
+            } else if(seed%3==1) {
+                DrawTriangle({x,y},{x+w,y},{x+w*.72f,y-35},body);
+            } else {
+                DrawRectangleRec({x+8,y-16,w-16,16},body);
+            }
+            DrawRectangleRec({x+3,y,w-6,2},Fade(edge,.55f));
+            for(float yy=y+15;yy<565;yy+=20) {
+                DrawRectangleRec({x+5,yy,w-10,1},Fade(edge,.14f));
+                for(float xx=x+10;xx+10<x+w*.77f;xx+=16) {
+                    int k=(int)((xx-x)*3+(yy-y)*7)+seed;
+                    if(k%7<4) DrawRectangleRec({xx,yy+3,9,7},Fade(k%5==0?pink:cyan,layer==2?.42f:.22f));
+                }
+            }
+            if(layer==2) {
+                DrawRectangleRec({x+3,y+5,3,h-5},Fade(edge,.15f));
+                DrawRectangleRec({x+4,y+5,1,h-5},Fade(edge,.65f));
+                for(float yy=y+65;yy<540;yy+=90) {
+                    DrawRectangleRec({x-3,yy,w+6,6},ColorRGB(22,30,52));
+                    DrawRectangleRec({x,yy,w,1},Fade(edge,.6f));
+                }
+                if(seed%4==0) {
+                    DrawLineEx({x+w*.5f,y-15},{x+w*.5f,y-65},2,body);
+                    DrawCircleV({x+w*.5f,y-65},3,Fade(pink,.55f+.35f*sinf(t*3+i)));
+                }
+            }
         }
     }
     // Torre BBVA: reinterpretacion futurista, no replica arquitectonica.
@@ -289,15 +451,36 @@ void Nivel::Dibujar(float camaraX) {
     DrawCircleV(center,12,cyan);
     // Trafico aereo y anuncios, en segundo plano.
     for(int i=0;i<9;i++) {float x=fmodf(t*(42+i*4)+i*890,8500)-600+d*.25f,y=185+i%4*55; DrawRectangleRec({x-42,y+4,42,2},Fade(cyan,.24f)); DrawRectangleRec({x,y,42,8},ColorRGB(66,83,130)); DrawRectangleRec({x+10,y-4,22,5},ColorRGB(95,130,175)); DrawRectangleRec({x+3,y+7,36,2},cyan);}
-    for(int i=0;i<5;i++) {float x=260+i*1450; DrawRectangleRec({x,290,190,50},ColorRGB(13,24,53,225)); DrawRectangleLinesEx({x,290,190,50},2,Fade(pink,.75f)); DrawText(i%2?"ANGELOPOLIS":"PUEBLA 2077",(int)x+12,306,20,cyan);}
-    // Superficies: geometria original intacta.
+    for(int i=1;i<5;i+=2) {float x=260+i*1450; DrawRectangleRec({x,290,190,50},ColorRGB(13,24,53,225)); DrawRectangleLinesEx({x,290,190,50},2,Fade(pink,.75f)); DrawText("ANGELOPOLIS",(int)x+12,306,20,cyan);}
+    // Superficies: geometria original intacta; paneles y luces dentro de p.
     for(const Rectangle& p:plataformas) {
         DibujarPlataforma(p,p.y==600,p.height==60);
         DrawRectangleRec({p.x,p.y,p.width,3},cyan);
-        DrawRectangleRec({p.x,p.y+4,p.width,2},Fade(violet,.7f));
-        if(p.height>=60) for(float x=p.x+15;x+25<p.x+p.width;x+=65) {
-            DrawRectangleRec({x,p.y+p.height-14,25,3},Fade(pink,.75f));
-            DrawLineEx({x,p.y+p.height-11},{x+8,p.y+p.height-5},1,Fade(cyan,.55f));
+        DrawRectangleRec({p.x,p.y+3,p.width,3},ColorRGB(44,104,138));
+        if(p.y==600) {
+            DrawRectangleRec({p.x,p.y+15,p.width,8},ColorRGB(49,65,89));
+            DrawRectangleRec({p.x,p.y+23,p.width,2},Fade(violet,.8f));
+            for(float x=p.x+8;x+76<=p.x+p.width;x+=84) {
+                DrawRectangleRec({x,p.y+32,76,70},ColorRGB(14,23,42));
+                DrawRectangleLinesEx({x,p.y+32,76,70},1,ColorRGB(68,83,110));
+                DrawRectangleRec({x+5,p.y+38,66,17},ColorRGB(38,52,76));
+                for(int k=0;k<5;k++) DrawRectangleRec({x+8+k*12.f,p.y+42,8,8},ColorRGB(17,30,49));
+                DrawLineEx({x+8,p.y+76},{x+30,p.y+76},2,Fade(cyan,.7f));
+                DrawLineEx({x+30,p.y+76},{x+40,p.y+65},2,Fade(cyan,.7f));
+                DrawLineEx({x+40,p.y+65},{x+66,p.y+65},2,Fade(cyan,.7f));
+                DrawCircleV({x+66,p.y+65},2,cyan);
+                DrawRectangleRec({x+8,p.y+91,60,3},Fade(pink,.55f+.2f*sinf(t*2+x*.02f)));
+            }
+        } else if(p.height==60) {
+            for(float x=p.x+12;x+24<=p.x+p.width;x+=32) {
+                DrawRectangleRec({x,p.y+24,24,12},ColorRGB(14,24,44));
+                DrawRectangleRec({x+3,p.y+27,18,3},Fade(violet,.8f));
+            }
+        } else {
+            for(float x=p.x+8;x+22<=p.x+p.width;x+=30) {
+                DrawRectangleRec({x,p.y+8,22,8},ColorRGB(12,23,43));
+                DrawRectangleRec({x+3,p.y+11,16,2},Fade(violet,.8f));
+            }
         }
     }
 

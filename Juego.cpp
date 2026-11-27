@@ -17,7 +17,26 @@ void Juego::CargarMapa(TipoMapa tipo) {
     obstaculos.clear();
     sierras.clear();
     trampasJungla.clear();
+    trampasPlaya.clear();
     puntosAnclaje.clear();
+    if (tipo == TipoMapa::Playa) {
+        trampasPlaya.emplace_back(TipoTrampaPlaya::Cangrejo, Vector2{650,600}, 55, 65);
+        trampasPlaya.emplace_back(TipoTrampaPlaya::Cangrejo, Vector2{920,600}, 55, 85);
+        trampasPlaya.emplace_back(TipoTrampaPlaya::Cangrejo, Vector2{1660,600}, 45, 105);
+        trampasPlaya.emplace_back(TipoTrampaPlaya::Coco, Vector2{824,376.16f}, 4.8f, 1100, 0.2f);
+        trampasPlaya.emplace_back(TipoTrampaPlaya::Coco, Vector2{1444,347.18f}, 4.5f, 1100, 1.1f);
+        trampasPlaya.emplace_back(TipoTrampaPlaya::Coco, Vector2{2064,318.2f}, 4.2f, 1100, 2.0f);
+        trampasPlaya.emplace_back(TipoTrampaPlaya::Tiburon, Vector2{2295,620}, 5.8f, 170, 0.4f);
+        trampasPlaya.emplace_back(TipoTrampaPlaya::Tiburon, Vector2{3260,620}, 5.2f, 175, 2.0f);
+        trampasPlaya.emplace_back(TipoTrampaPlaya::Canon, Vector2{3710,548}, 5.4f, -240, 0.3f);
+        trampasPlaya.emplace_back(TipoTrampaPlaya::Canon, Vector2{4210,548}, 4.8f, -270, 2.0f);
+        trampasPlaya.emplace_back(TipoTrampaPlaya::Tentaculo, Vector2{5400,620}, 6.5f, 145, 0.3f);
+        trampasPlaya.emplace_back(TipoTrampaPlaya::Tentaculo, Vector2{5650,610}, 6.0f, 110, 2.0f);
+        trampasPlaya.emplace_back(TipoTrampaPlaya::Tentaculo, Vector2{6080,610}, 5.8f, 125, 3.0f);
+        puntosAnclaje = {{550,300},{1250,300},{1900,300},{2300,300},{2800,280},{3270,300},{3800,280},{4350,300},{4900,280},{5400,300},{5950,280}};
+        Reiniciar();
+        return;
+    }
     if (tipo == TipoMapa::Jungla) {
         puntosAnclaje = {{550,300},{1250,280},{1950,290},{2650,280},{3350,280},{4130,280},{4750,280},{5500,280},{6000,280}};
         trampasJungla.emplace_back(TipoTrampaJungla::Planta, Vector2{850,600});
@@ -114,6 +133,7 @@ void Juego::Ejecutar() {
             !seReinicio && !carrera.EstaTerminada()) {
             for (Sierra& sierra : sierras) sierra.Actualizar(deltaTime);
             for (auto& trampa : trampasJungla) trampa.Actualizar(deltaTime);
+            for (auto& trampa : trampasPlaya) trampa.Actualizar(deltaTime);
             // El gancho se actualiza ANTES de la fisica del jugador.
             auto buscarAnclaje = [&](Vector2 origen, Vector2& destino) {
                 float minima = 450.0f;
@@ -156,6 +176,7 @@ void Juego::Ejecutar() {
                 gancho2.EstaActivo() && (IsKeyDown(KEY_RIGHT_SHIFT) || IsKeyDown(KEY_K)),
                 gancho2.EstaActivo() && IsKeyDown(KEY_DOWN));
 
+            nivel.ActualizarBalsas(deltaTime);
             jugador1.Actualizar(deltaTime, nivel.ObtenerPlataformas());
             jugador2.Actualizar(deltaTime, nivel.ObtenerPlataformas());
 
@@ -184,6 +205,12 @@ void Juego::Ejecutar() {
 
         if (pantalla == Pantalla::Jugando && cuentaRegresiva <= 0.0f && !seReinicio && !carrera.EstaTerminada()) {
             for (const auto& trampa : trampasJungla) {
+                if (trampa.Colisiona(jugador1.ObtenerRectangulo())) { carrera.EliminarJugador(1); break; }
+                if (trampa.Colisiona(jugador2.ObtenerRectangulo())) { carrera.EliminarJugador(2); break; }
+            }
+        }
+        if (pantalla == Pantalla::Jugando && cuentaRegresiva <= 0.0f && !seReinicio && !carrera.EstaTerminada()) {
+            for (const auto& trampa : trampasPlaya) {
                 if (trampa.Colisiona(jugador1.ObtenerRectangulo())) { carrera.EliminarJugador(1); break; }
                 if (trampa.Colisiona(jugador2.ObtenerRectangulo())) { carrera.EliminarJugador(2); break; }
             }
@@ -222,6 +249,7 @@ void Juego::Ejecutar() {
         for (const Obstaculo& obstaculo : obstaculos) obstaculo.Dibujar();
         for (const Sierra& sierra : sierras) sierra.Dibujar();
         for (const auto& trampa : trampasJungla) trampa.Dibujar();
+        for (const auto& trampa : trampasPlaya) trampa.Dibujar();
         Rectangle r1 = jugador1.ObtenerRectangulo();
         Rectangle r2 = jugador2.ObtenerRectangulo();
         gancho1.Dibujar({r1.x+r1.width/2,r1.y+r1.height/2});
@@ -262,13 +290,18 @@ void Juego::Ejecutar() {
                 if (boton({460, 450, 360, 64}, "SALIR")) salir = true;
             } else if (pantalla == Pantalla::Mapas) {
                 DrawText("SELECCIONA EL MAPA", 465, 225, 28, WHITE);
-                if (boton({190, 310, 420, 90}, "PUEBLA 2077")) {
+                if (boton({85, 310, 350, 90}, "PUEBLA 2077")) {
                     CargarMapa(TipoMapa::Industrial);
                     cuentaRegresiva = 3.75f;
                     pantalla = Pantalla::Jugando;
                 }
-                if (boton({670, 310, 420, 90}, "PUEBLA 1400")) {
+                if (boton({465, 310, 350, 90}, "PUEBLA 1400")) {
                     CargarMapa(TipoMapa::Jungla);
+                    cuentaRegresiva = 3.75f;
+                    pantalla = Pantalla::Jugando;
+                }
+                if (boton({845, 310, 350, 90}, "CANCUN 2026")) {
+                    CargarMapa(TipoMapa::Playa);
                     cuentaRegresiva = 3.75f;
                     pantalla = Pantalla::Jugando;
                 }
@@ -295,8 +328,10 @@ void Juego::Ejecutar() {
 }
 
 void Juego::ReiniciarJugadores() {
+    nivel.ReiniciarBalsas();
     for (Sierra& sierra : sierras) sierra.Reiniciar();
     for (auto& trampa : trampasJungla) trampa.Reiniciar();
+    for (auto& trampa : trampasPlaya) trampa.Reiniciar();
     gancho1.Soltar();
     gancho2.Soltar();
     jugador1 = Jugador(100,300,GREEN,KEY_A,KEY_D,KEY_W,KEY_LEFT_SHIFT,KEY_S);

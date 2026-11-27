@@ -34,15 +34,40 @@ bool TrampaJungla::Colisiona(Rectangle j) const {
 }
 void TrampaJungla::Dibujar() const {
     if(tipo==TipoTrampaJungla::Planta){
-        DrawLineEx(origen,centro,12,DARKGREEN);
-        DrawEllipse((int)origen.x-15,(int)origen.y-10,20,8,GREEN);
-        DrawEllipse((int)origen.x+15,(int)origen.y-10,20,8,DARKGREEN);
+        float x=centro.x,y=centro.y;
         float t=std::fmod(tiempo+fase,3.6f);
-        Color c=activa?RED:t>=1.5f&&t<2.2f?ORANGE:MAROON;
-        DrawCircleV(centro,25,c);
-        if(activa){ DrawEllipse((int)centro.x,(int)centro.y,21,12,BLACK);
-            for(int i=-2;i<=2;++i){float x=centro.x+i*7; DrawTriangle({x-3,centro.y-9},{x,centro.y-2},{x+3,centro.y-9},RAYWHITE); DrawTriangle({x-3,centro.y+9},{x+3,centro.y+9},{x,centro.y+2},RAYWHITE);}
-        } else DrawLineEx({centro.x-19,centro.y},{centro.x+19,centro.y},3,BLACK);
+        bool aviso=t>=1.5f && t<2.2f;
+        Color borde={34,48,32,255}, hoja={48,133,62,255}, luz={115,192,75,255};
+        Vector2 anterior=origen;
+        for(int j=1;j<=10;j++) {
+            float f=j/10.0f;
+            Vector2 p={x+7*std::sin(f*P),origen.y+(y-origen.y)*f};
+            DrawLineEx(anterior,p,12,borde); DrawLineEx(anterior,p,7,hoja); anterior=p;
+        }
+        for(int lado : {-1,1}) {
+            float q=origen.x+lado*17.f, h=origen.y-8;
+            DrawEllipse((int)q,(int)h,19,9,borde);
+            DrawEllipse((int)q,(int)h-2,17,6,hoja);
+            DrawLineEx({origen.x,h},{q+lado*14,h-3},2,luz);
+            for(int j=1;j<=3;j++) DrawLineEx({origen.x+lado*j*8.f,h-1},{origen.x+lado*(j*8.f+4),h-6},1,luz);
+        }
+        Color piel=activa?Color{198,45,69,255}:aviso?Color{242,133,37,255}:Color{147,46,100,255};
+        float apertura=activa?12.f:aviso?3.f+2.f*std::sin(t*20):1.5f;
+        DrawCircleV(centro,25,borde);
+        DrawEllipse((int)x,(int)y,23,24,piel);
+        DrawEllipse((int)x-7,(int)y-14,10,5,Fade(RAYWHITE,.25f));
+        for(int j=0;j<5;j++) DrawCircleV({x-16+j*8.f,y-15+float(j%2)*4},2.5f,Color{245,186,123,255});
+        DrawEllipse((int)x,(int)y+2,22,apertura+2,borde);
+        DrawEllipse((int)x,(int)y+2,19,apertura,Color{55,15,35,255});
+        if(activa) {
+            DrawEllipse((int)x,(int)y+9,10,4,Color{232,88,118,255});
+            for(int j=-2;j<=2;j++) {
+                float q=x+j*7.f;
+                DrawTriangle({q-3,y-8},{q,y-1},{q+3,y-8},Color{255,239,191,255});
+                DrawTriangle({q-3,y+12},{q+3,y+12},{q,y+5},Color{255,239,191,255});
+            }
+        }
+        if(aviso) DrawCircleLines((int)x,(int)y,26,Fade(ORANGE,.6f+.3f*std::sin(t*20)));
     } else if(tipo==TipoTrampaJungla::Pendulo){
         DrawLineEx(origen,centro,5,DARKGRAY); DrawCircleV(origen,8,GRAY);
         DrawCircleV(centro,20,DARKGRAY);
